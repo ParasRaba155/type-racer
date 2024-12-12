@@ -18,6 +18,24 @@ func main() {
 	}()
 
 	terminal := term.NewTerminal(os.Stdout, "Ready for the race??")
+	terminal.AutoCompleteCallback = autoComplete
 	terminal.SetPrompt(GetRandomText())
-	terminal.ReadLine()
+	fmt.Printf("Ready for the Race!!!!")
+	line, err := terminal.ReadLine()
+	if err != nil {
+		fmt.Printf("error in reading the line: %v", err)
+	}
+	fmt.Println("LINE", line)
+}
+
+func autoComplete(line string, pos int, key rune) (newLine string, newPos int, ok bool) {
+	fmt.Println("autoComplete")
+	if key == ' ' {
+		return line, pos, true
+	}
+	if key == rune(10) {
+		fmt.Println("FUCK THIS SHIT")
+		return line, pos + 1, false
+	}
+	return line, pos, false
 }
