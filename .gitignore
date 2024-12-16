@@ -1,3 +1,6 @@
 # binary files
 type-racer
 main
+
+## log files
+*.log

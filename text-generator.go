@@ -1,6 +1,11 @@
 package main
 
-import "math/rand/v2"
+import (
+	"math/rand/v2"
+	"strings"
+)
+
+const greetingMessage = "Ready For the Race!!!"
 
 var quotes = [...]string{
 	"The gentle breeze carried the scent of blooming jasmine through the open window, filling the room with a calming aroma that made it hard not to feel at peace with the world outside. As the sunlight streamed in, dancing across the wooden floor, she found herself lost in thought, reminiscing about simpler days spent wandering through lush fields, where the same scent of jasmine seemed to follow her every step.\n",
@@ -19,4 +24,12 @@ var quotes = [...]string{
 func GetRandomText() string {
 	randomNum := rand.N(len(quotes))
 	return quotes[randomNum]
+}
+
+func GetRandomTextWithGreeting() string {
+	var b strings.Builder
+	b.WriteString(greetingMessage)
+	b.WriteByte('\n')
+	b.WriteString(GetRandomText())
+	return b.String()
 }
