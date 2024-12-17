@@ -45,11 +45,11 @@ func main() {
 		}
 
 		if char != text[pos] {
-			pos++
 			fmt.Printf("diff: %s, %s\n", string(char), string(text[pos]))
+			pos++
 			continue
 		}
-        pos++
+		pos++
 		userInput[pos] = rune(char)
 
 	}
