@@ -8,8 +8,10 @@ import (
 	"golang.org/x/term"
 )
 
+const greetingMessage = "Ready For the Race!!!!!"
+
 func main() {
-	fd := os.Stdout.Fd()
+	fd := os.Stdin.Fd()
 	logFile, err := os.OpenFile("debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		panic(err)
@@ -24,20 +26,31 @@ func main() {
 		fmt.Printf("\n error in restoring: %v", err)
 	}()
 
-	terminal := term.NewTerminal(os.Stdout, GetRandomTextWithGreeting())
-	terminal.AutoCompleteCallback = autoComplete
-	log.Printf("Ready for the Race!!!!\n")
-	line, err := terminal.ReadLine()
-	if err != nil {
-		fmt.Printf("error in reading the line: %v", err)
-	}
-	fmt.Println("LINE", line)
-}
+	text := GetRandomText()
 
-func autoComplete(line string, pos int, key rune) (newLine string, newPos int, ok bool) {
-	log.Printf("key : %v,", key)
-	if key == 10 {
-		return "FUCK THIS SHIT", pos + 1, false
+	fmt.Println(greetingMessage)
+	fmt.Println(text)
+	userInput := make([]rune, len(text))
+	pos := 0
+
+	for pos < len(text) {
+		buf := make([]byte, 1)
+		os.Stdin.Read(buf)
+
+		char := buf[0]
+
+		if char == 127 {
+			fmt.Print("\b \b")
+			continue
+		}
+
+		if char != text[pos] {
+			pos++
+			fmt.Printf("diff: %s, %s\n", string(char), string(text[pos]))
+			continue
+		}
+        pos++
+		userInput[pos] = rune(char)
+
 	}
-	return line, pos, false
 }
