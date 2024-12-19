@@ -12,13 +12,13 @@ const (
 	greetingMessage = "Ready For the Race!!!!!"
 
 	// ascii escape chars for colors
-	grayColor  = "\033[37m"
 	resetColor = "\033[0m"
 	redColor   = "\033[31m"
 	greenColor = "\033[32m"
+	cyanColor  = "\033[36m"
+	grayColor  = "\033[37m"
 
-	// carriage chars
-	carriageReturn  = "\r"
+	carriageReturn  = "\r" // takes the cursor to the very beginning
 	carriageNewLine = "\r\n"
 
 	// special chars
@@ -40,7 +40,7 @@ func main() {
 	}
 	defer func() {
 		err := term.Restore(int(fd), oldState)
-		fmt.Printf(showCursor)
+		fmt.Print(showCursor)
 		log.Printf("\n error in restoring: %v", err)
 	}()
 
@@ -50,7 +50,7 @@ func main() {
 	fmt.Print(grayColor)
 	fmt.Print(greetingMessage, carriageNewLine)
 	fmt.Print(resetColor)
-	fmt.Print(grayColor)
+	fmt.Print(cyanColor)
 	fmt.Print(text)
 	fmt.Print(resetColor)
 	fmt.Print(carriageReturn)
@@ -78,8 +78,10 @@ func main() {
 
 		fmt.Print(carriageReturn)
 		for i, char := range text {
-			if i > len(userInput) {
-				fmt.Print(grayColor)
+			fmt.Print(resetColor)
+			// mark the chars as green which are still not written
+			if i > pos {
+				fmt.Print(cyanColor)
 				fmt.Printf("%c", char)
 				fmt.Print(resetColor)
 				continue
@@ -96,6 +98,8 @@ func main() {
 		}
 	}
 	fmt.Print(resetColor)
+	fmt.Print(carriageNewLine)
+	fmt.Printf("user input: %s", string(userInput))
 }
 
 func abcd() string {
