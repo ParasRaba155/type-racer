@@ -22,3 +22,38 @@ func GetRandomText() string {
 	randomNum := rand.N(len(quotes))
 	return quotes[randomNum]
 }
+
+type Stats struct {
+	Accuracy float64
+	// Word Per Minute
+	WPM float64
+}
+
+func textDiffRatio(orig, newer []rune) float64 {
+	if len(orig) == 0 || len(newer) == 0 {
+		return 0
+	}
+
+	wrongs := 0
+	for i := range orig {
+		if i >= len(newer) {
+			break
+		}
+		if orig[i] != newer[i] {
+			wrongs++
+		}
+	}
+
+	return 1 - float64(wrongs)/float64(len(orig))
+}
+
+// GetStats orig and user input text and total time in second
+func GetStats(orig, newer []rune, sec float64) Stats {
+	diffRatio := textDiffRatio(orig, newer)
+	lpm := float64(len(newer)*60) / sec
+
+	return Stats{
+		Accuracy: diffRatio * 100,
+		WPM:      lpm,
+	}
+}

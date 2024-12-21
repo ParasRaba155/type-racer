@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"golang.org/x/term"
 )
@@ -58,6 +59,7 @@ func main() {
 
 	userInput := make([]rune, len(text))
 	pos := 0
+	start := time.Now()
 
 	for pos < len(text) {
 		buf := make([]byte, 4)
@@ -99,7 +101,9 @@ func main() {
 	}
 	fmt.Print(resetColor)
 	fmt.Print(carriageNewLine)
-	fmt.Printf("user input: %s", string(userInput))
+	diff := time.Since(start).Seconds()
+	stats := GetStats([]rune(text), userInput, diff)
+	fmt.Printf("user input: %+v", stats)
 }
 
 func abcd() string {
