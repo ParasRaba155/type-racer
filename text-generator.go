@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"math/rand/v2"
 )
 
@@ -50,10 +51,22 @@ func textDiffRatio(orig, newer []rune) float64 {
 // GetStats orig and user input text and total time in second
 func GetStats(orig, newer []rune, sec float64) Stats {
 	diffRatio := textDiffRatio(orig, newer)
-	lpm := float64(len(newer)*60) / sec
 
 	return Stats{
 		Accuracy: diffRatio * 100,
-		WPM:      lpm,
+		WPM:      getWPM(newer, sec),
 	}
+}
+
+// getWPM calculates by considering 5 runes as a single word
+func getWPM(str []rune, sec float64) float64 {
+	numOfLetterInWord := 5.0
+	numOfWordInStr := float64(len(str)) / numOfLetterInWord
+
+	wps := numOfWordInStr / sec
+	return wps * 60
+}
+
+func (s Stats) String() string {
+	return fmt.Sprintf("Accuracy = %.0f%% WPM (Words Per Minute) = %.f", s.Accuracy, s.WPM)
 }

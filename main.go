@@ -103,7 +103,7 @@ func main() {
 	fmt.Print(carriageNewLine)
 	diff := time.Since(start).Seconds()
 	stats := GetStats([]rune(text), userInput, diff)
-	fmt.Printf("user input: %+v", stats)
+	fmt.Printf("result: %s", stats)
 }
 
 func abcd() string {
