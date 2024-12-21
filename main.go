@@ -60,10 +60,10 @@ func main() {
 	pos := 0
 
 	for pos < len(text) {
-		buf := make([]byte, 1)
+		buf := make([]byte, 4)
 		n, err := os.Stdin.Read(buf)
 		if n != 1 || err != nil {
-			log.Printf("reading buffer: %d: %v", n, err)
+			log.Printf("reading buffer: %d read: %v", n, err)
 			return
 		}
 
@@ -80,7 +80,7 @@ func main() {
 		for i, char := range text {
 			fmt.Print(resetColor)
 			// mark the chars as green which are still not written
-			if i > pos {
+			if i >= pos {
 				fmt.Print(cyanColor)
 				fmt.Printf("%c", char)
 				fmt.Print(resetColor)
