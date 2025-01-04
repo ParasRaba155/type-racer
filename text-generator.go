@@ -30,7 +30,7 @@ type Stats struct {
 	WPM float64
 }
 
-func textDiffRatio(orig, newer []rune) float64 {
+func textDiffRatio[T comparable](orig, newer []T) float64 {
 	if len(orig) == 0 || len(newer) == 0 {
 		return 0
 	}
@@ -68,5 +68,5 @@ func getWPM(str []rune, sec float64) float64 {
 }
 
 func (s Stats) String() string {
-	return fmt.Sprintf("Accuracy = %.0f%% WPM (Words Per Minute) = %.f", s.Accuracy, s.WPM)
+	return fmt.Sprintf("Accuracy = %.0f%%, WPM (Words Per Minute) = %.f", s.Accuracy, s.WPM)
 }
