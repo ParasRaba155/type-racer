@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"golang.org/x/term"
@@ -46,7 +47,7 @@ func main() {
 	}()
 
 	text := GetRandomText()
-	text = abcd()
+	text = printAs(120)
 
 	fmt.Print(grayColor)
 	fmt.Print(greetingMessage, carriageNewLine)
@@ -79,24 +80,50 @@ func main() {
 		}
 
 		fmt.Print(carriageReturn)
+		fmt.Print(deleteTillNewLine)
+		// width here comes out to be the number of chars
+		// since we are only dealing with 1 byte chars
+		width, _, err := term.GetSize(int(fd))
+		if err != nil {
+			log.Fatalf("reading terminal size: %v", err)
+			return
+		}
+		lineLen := 0
+
 		for i, char := range text {
 			fmt.Print(resetColor)
+			log.Printf("i = %d and lineLen = %d and width = %d", i, lineLen, width)
+
+			if lineLen >= width {
+				fmt.Print(carriageNewLine)
+				fmt.Print(deleteTillNewLine)
+				lineLen = 0
+			}
+
 			// mark the chars as green which are still not written
 			if i >= pos {
 				fmt.Print(cyanColor)
 				fmt.Printf("%c", char)
+				lineLen++
 				fmt.Print(resetColor)
 				continue
 			}
 			if userInput[i] == char {
 				fmt.Print(greenColor)
 				fmt.Printf("%c", char)
+				lineLen++
 				fmt.Print(resetColor)
 				continue
 			}
 			fmt.Print(redColor)
 			fmt.Printf("%c", char)
+			lineLen++
 			fmt.Print(resetColor)
+		}
+		// Fill blank spaces for shorter input
+		for lineLen < width {
+			fmt.Print(" ")
+			lineLen++
 		}
 	}
 	fmt.Print(resetColor)
@@ -104,13 +131,14 @@ func main() {
 	diff := time.Since(start).Seconds()
 	stats := GetStats([]rune(text), userInput, diff)
 	fmt.Printf("result: %s", stats)
+	fmt.Print(carriageNewLine)
 }
 
-func abcd() string {
-	var c [26]byte
-	var i byte
-	for i = 65; i <= 90; i++ {
-		c[i-65] = i
+// printAs will print 'a's
+func printAs(width int) string {
+	var s strings.Builder
+	for range width {
+		s.WriteByte('a')
 	}
-	return string(c[:])
+	return s.String()
 }
