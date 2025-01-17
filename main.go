@@ -27,6 +27,10 @@ const (
 	hideCursor        = "\033[?25l"
 	showCursor        = "\033[?25h"
 	deleteTillNewLine = "\033[K"
+	underLineText     = "\033[4m"
+
+	// backspace char
+	backSpaceChar = 127
 )
 
 func main() {
@@ -47,7 +51,7 @@ func main() {
 	}()
 
 	text := GetRandomText()
-	text = printAs(120)
+	// text = printABCD(44)
 
 	fmt.Print(grayColor)
 	fmt.Print(greetingMessage, carriageNewLine)
@@ -72,59 +76,14 @@ func main() {
 
 		char := buf[0]
 
-		if char != 127 {
+		if char != backSpaceChar {
 			userInput[pos] = rune(char)
 			pos++
 		} else {
 			pos = max(pos-1, 0)
 		}
 
-		fmt.Print(carriageReturn)
-		fmt.Print(deleteTillNewLine)
-		// width here comes out to be the number of chars
-		// since we are only dealing with 1 byte chars
-		width, _, err := term.GetSize(int(fd))
-		if err != nil {
-			log.Fatalf("reading terminal size: %v", err)
-			return
-		}
-		lineLen := 0
-
-		for i, char := range text {
-			fmt.Print(resetColor)
-			log.Printf("i = %d and lineLen = %d and width = %d", i, lineLen, width)
-
-			if lineLen >= width {
-				fmt.Print(carriageNewLine)
-				fmt.Print(deleteTillNewLine)
-				lineLen = 0
-			}
-
-			// mark the chars as green which are still not written
-			if i >= pos {
-				fmt.Print(cyanColor)
-				fmt.Printf("%c", char)
-				lineLen++
-				fmt.Print(resetColor)
-				continue
-			}
-			if userInput[i] == char {
-				fmt.Print(greenColor)
-				fmt.Printf("%c", char)
-				lineLen++
-				fmt.Print(resetColor)
-				continue
-			}
-			fmt.Print(redColor)
-			fmt.Printf("%c", char)
-			lineLen++
-			fmt.Print(resetColor)
-		}
-		// Fill blank spaces for shorter input
-		for lineLen < width {
-			fmt.Print(" ")
-			lineLen++
-		}
+		display(text, userInput, pos)
 	}
 	fmt.Print(resetColor)
 	fmt.Print(carriageNewLine)
@@ -134,11 +93,50 @@ func main() {
 	fmt.Print(carriageNewLine)
 }
 
-// printAs will print 'a's
-func printAs(width int) string {
+// printABCD will print the char A to Z, and will do it repatatively until the width is reached
+func printABCD(width int) string {
 	var s strings.Builder
-	for range width {
-		s.WriteByte('a')
+	repeat := (width / 26) + 1
+	counter := 0
+	for range repeat {
+		for i := 65; i <= 90; i++ {
+			if counter > width {
+				return s.String()
+			}
+			counter++
+			s.WriteByte(byte(i))
+		}
 	}
 	return s.String()
+}
+
+// display will pretty print the text according to the userInput
+func display(text string, userInput []rune, pos int) {
+	fmt.Print(carriageReturn)
+	// fmt.Print(deleteTillNewLine)
+
+	for i, char := range text {
+		fmt.Print(resetColor)
+
+		// mark the chars as cyan which are still not written
+		if i >= pos {
+			// the current char should show an underline underneath (for virtual cursor)
+			if i == pos {
+				fmt.Print(underLineText)
+			}
+			fmt.Print(cyanColor)
+			fmt.Printf("%c", char)
+			fmt.Print(resetColor)
+			continue
+		}
+		if userInput[i] == char {
+			fmt.Print(greenColor)
+			fmt.Printf("%c", char)
+			fmt.Print(resetColor)
+			continue
+		}
+		fmt.Print(redColor)
+		fmt.Printf("%c", char)
+		fmt.Print(resetColor)
+	}
 }
