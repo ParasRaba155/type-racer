@@ -31,6 +31,10 @@ const (
 
 	// backspace char
 	backSpaceChar = 127
+
+	// delete till
+	clearScreen      = "\033[2J"
+	moveCursorToHome = "\033[H"
 )
 
 func main() {
@@ -51,7 +55,7 @@ func main() {
 	}()
 
 	text := GetRandomText()
-	// text = printABCD(44)
+	fmt.Print(clearScreen)
 
 	fmt.Print(grayColor)
 	fmt.Print(greetingMessage, carriageNewLine)
@@ -83,7 +87,11 @@ func main() {
 			pos = max(pos-1, 0)
 		}
 
-		display(text, userInput, pos)
+		width, _, err := term.GetSize(int(fd))
+		if err != nil {
+			log.Printf("reading the terminal size: %v", err)
+		}
+		display(text, userInput, pos, width)
 	}
 	fmt.Print(resetColor)
 	fmt.Print(carriageNewLine)
@@ -111,32 +119,65 @@ func printABCD(width int) string {
 }
 
 // display will pretty print the text according to the userInput
-func display(text string, userInput []rune, pos int) {
-	fmt.Print(carriageReturn)
-	// fmt.Print(deleteTillNewLine)
+func display(text string, userInput []rune, pos, width int) {
+	fmt.Print(clearScreen)
+	fmt.Print(moveCursorToHome)
+
+	text = getWrappedText(text, width)
+	userInputIdx := 0
 
 	for i, char := range text {
 		fmt.Print(resetColor)
+		if text[i] == '\n' {
+			fmt.Print(carriageNewLine)
+			continue
+		}
 
 		// mark the chars as cyan which are still not written
-		if i >= pos {
+		if userInputIdx >= pos {
 			// the current char should show an underline underneath (for virtual cursor)
-			if i == pos {
+			if userInputIdx == pos {
 				fmt.Print(underLineText)
 			}
 			fmt.Print(cyanColor)
 			fmt.Printf("%c", char)
 			fmt.Print(resetColor)
+			userInputIdx++
 			continue
 		}
-		if userInput[i] == char {
+
+		if userInput[userInputIdx] == char {
 			fmt.Print(greenColor)
 			fmt.Printf("%c", char)
 			fmt.Print(resetColor)
+			userInputIdx++
 			continue
 		}
 		fmt.Print(redColor)
 		fmt.Printf("%c", char)
 		fmt.Print(resetColor)
+		userInputIdx++
 	}
+}
+
+func getWrappedText(text string, width int) string {
+	if width <= 0 {
+		return ""
+	}
+
+	if len(text) <= width {
+		return text
+	}
+
+	var s strings.Builder
+	remainingWidth := width
+	for i := range text {
+		if remainingWidth == 0 {
+			s.WriteByte('\n')
+			remainingWidth = width
+		}
+		s.WriteByte(text[i])
+		remainingWidth--
+	}
+	return s.String()
 }
