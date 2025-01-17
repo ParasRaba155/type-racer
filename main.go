@@ -33,8 +33,9 @@ const (
 	backSpaceChar = 127
 
 	// delete till
-	clearScreen      = "\033[2J"
-	moveCursorToHome = "\033[H"
+	clearScreen         = "\033[2J"
+	moveCursorToHome    = "\033[H"
+	moveCursorUpOneLine = "\033[F"
 )
 
 func main() {
@@ -55,7 +56,6 @@ func main() {
 	}()
 
 	text := GetRandomText()
-	fmt.Print(clearScreen)
 
 	fmt.Print(grayColor)
 	fmt.Print(greetingMessage, carriageNewLine)
@@ -102,6 +102,8 @@ func main() {
 }
 
 // printABCD will print the char A to Z, and will do it repatatively until the width is reached
+//
+// NOTE: This is my test function to check for stuff
 func printABCD(width int) string {
 	var s strings.Builder
 	repeat := (width / 26) + 1
@@ -120,10 +122,16 @@ func printABCD(width int) string {
 
 // display will pretty print the text according to the userInput
 func display(text string, userInput []rune, pos, width int) {
-	fmt.Print(clearScreen)
-	fmt.Print(moveCursorToHome)
-
 	text = getWrappedText(text, width)
+	linesToClear := strings.Count(text, "\n") + 1
+	for i := 0; i < linesToClear; i++ {
+		fmt.Print(deleteTillNewLine)
+		if i < linesToClear-1 {
+			fmt.Print(moveCursorUpOneLine)
+		}
+	}
+	fmt.Print(carriageReturn)
+
 	userInputIdx := 0
 
 	for i, char := range text {
