@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"log"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/term"
@@ -13,118 +15,113 @@ import (
 const (
 	greetingMessage = "Ready For the Race!!!!!"
 
-	// ascii escape chars for colors
+	// ANSI escape codes for colors
 	resetColor = "\033[0m"
 	redColor   = "\033[31m"
 	greenColor = "\033[32m"
 	cyanColor  = "\033[36m"
 	grayColor  = "\033[37m"
 
-	carriageReturn  = "\r" // takes the cursor to the very beginning
-	carriageNewLine = "\r\n"
-
-	// special chars
-	hideCursor        = "\033[?25l"
-	showCursor        = "\033[?25h"
-	deleteTillNewLine = "\033[K"
-	underLineText     = "\033[4m"
-
-	// backspace char
-	backSpaceChar = 127
-
-	// delete till
+	// ANSI escape codes for cursor/screen manipulation
+	carriageReturn      = "\r"
+	carriageNewLine     = "\r\n"
+	hideCursor          = "\033[?25l"
+	showCursor          = "\033[?25h"
+	deleteTillNewLine   = "\033[K"
+	underLineText       = "\033[4m"
 	clearScreen         = "\033[2J"
 	moveCursorToHome    = "\033[H"
 	moveCursorUpOneLine = "\033[F"
+
+	// backspace char
+	backSpaceChar = 127
 )
 
-func main() {
-	fd := os.Stdin.Fd()
-	logFile, err := os.OpenFile("debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+// setupTerminalRawMode puts the terminal into raw mode and returns the original state.
+func setupTerminalRawMode(fd int) (*term.State, error) {
+	oldState, err := term.MakeRaw(fd)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to make terminal raw: %w", err)
 	}
-	log.SetOutput(logFile)
-	oldState, err := term.MakeRaw(int(fd))
-	if err != nil {
-		panic(err)
+	fmt.Print(hideCursor) // Hide cursor immediately after raw mode is set
+	return oldState, nil
+}
+
+// restoreTerminalMode restores the terminal to its original state.
+func restoreTerminalMode(fd int, oldState *term.State) {
+	fmt.Print(showCursor) // Show cursor before restoring
+	if err := term.Restore(fd, oldState); err != nil {
+		log.Printf("error restoring terminal: %v", err) // Log but don't panic on defer
 	}
-	defer func() {
-		err := term.Restore(int(fd), oldState)
-		fmt.Print(showCursor)
-		log.Printf("\n error in restoring: %v", err)
-	}()
+}
 
-	text := GetRandomText()
+// clearAndResetCursor clears the screen and moves the cursor to home.
+func clearAndResetCursor() {
+	fmt.Print(clearScreen)
+	fmt.Print(moveCursorToHome)
+}
 
-	fmt.Print(grayColor)
-	fmt.Print(greetingMessage, carriageNewLine)
-	fmt.Print(resetColor)
-	fmt.Print(cyanColor)
+// printToTerminal prints text with optional color.
+func printToTerminal(text string, color string) {
+	if color == "" {
+		fmt.Print(text)
+		return
+	}
+	fmt.Print(color)
 	fmt.Print(text)
 	fmt.Print(resetColor)
-	fmt.Print(carriageReturn)
-	fmt.Print(hideCursor)
-
-	userInput := make([]rune, len(text))
-	pos := 0
-	start := time.Now()
-
-	for pos < len(text) {
-		buf := make([]byte, 4)
-		n, err := os.Stdin.Read(buf)
-		if n != 1 || err != nil {
-			log.Printf("reading buffer: %d read: %v", n, err)
-			return
-		}
-
-		char := buf[0]
-
-		if char != backSpaceChar {
-			userInput[pos] = rune(char)
-			pos++
-		} else {
-			pos = max(pos-1, 0)
-		}
-
-		width, _, err := term.GetSize(int(fd))
-		if err != nil {
-			log.Printf("reading the terminal size: %v", err)
-		}
-		display(text, userInput, pos, width)
-	}
-	fmt.Print(resetColor)
-	fmt.Print(carriageNewLine)
-	diff := time.Since(start).Seconds()
-	stats := GetStats([]rune(text), userInput, diff)
-	fmt.Printf("result: %s", stats)
-	fmt.Print(carriageNewLine)
 }
 
-// printABCD will print the char A to Z, and will do it repatatively until the width is reached
-//
-// NOTE: This is my test function to check for stuff
-func printABCD(width int) string {
-	var s strings.Builder
-	repeat := (width / 26) + 1
-	counter := 0
-	for range repeat {
-		for i := 65; i <= 90; i++ {
-			if counter > width {
-				return s.String()
-			}
-			counter++
-			s.WriteByte(byte(i))
-		}
-	}
-	return s.String()
+// moveCursorUpAndClearLine moves cursor up one line and clears it.
+func moveCursorUpAndClearLine() {
+	fmt.Print(moveCursorUpOneLine)
+	fmt.Print(deleteTillNewLine)
 }
 
-// display will pretty print the text according to the userInput
-func display(text string, userInput []rune, pos, width int) {
-	text = getWrappedText(text, width)
-	linesToClear := strings.Count(text, "\n") + 1
-	for i := 0; i < linesToClear; i++ {
+// GameState holds the dynamic state of the current game
+type GameState struct {
+	mu         sync.Mutex
+	TargetText string
+	UserInput  []rune
+	Position   int
+	StartTime  time.Time
+}
+
+// NewGameState initializes a new game state.
+func NewGameState(targetText string) *GameState {
+	return &GameState{
+		TargetText: targetText,
+		UserInput:  make([]rune, len(targetText)),
+		Position:   0,
+		StartTime:  time.Now(),
+	}
+}
+
+// ProcessInput handles a single character input from the user.
+func (gs *GameState) ProcessInput(char rune) {
+	gs.mu.Lock()
+	defer gs.mu.Unlock()
+	if char == backSpaceChar {
+		gs.Position = max(gs.Position-1, 0)
+		return
+	}
+	// Ensure we don't write beyond allocated buffer
+	if gs.Position >= len(gs.TargetText) {
+		log.Print("GameState Position has exceeded TargetText")
+		gs.Position++
+		return
+	}
+	gs.UserInput[gs.Position] = rune(char)
+	gs.Position++
+}
+
+func (gs *GameState) Render(width int) {
+	gs.mu.Lock()
+	defer gs.mu.Unlock()
+
+	wrappedText := getWrappedText(gs.TargetText, width)
+	linesToClear := strings.Count(wrappedText, "\n") + 1
+	for i := range linesToClear {
 		fmt.Print(deleteTillNewLine)
 		if i < linesToClear-1 {
 			fmt.Print(moveCursorUpOneLine)
@@ -134,38 +131,62 @@ func display(text string, userInput []rune, pos, width int) {
 
 	userInputIdx := 0
 
-	for i, char := range text {
+	for _, char := range wrappedText {
 		fmt.Print(resetColor)
-		if text[i] == '\n' {
+		if char == '\n' {
 			fmt.Print(carriageNewLine)
 			continue
 		}
 
+		toPrint := fmt.Sprintf("%c", char)
 		// mark the chars as cyan which are still not written
-		if userInputIdx >= pos {
+		if userInputIdx >= gs.Position {
 			// the current char should show an underline underneath (for virtual cursor)
-			if userInputIdx == pos {
+			if userInputIdx == gs.Position {
 				fmt.Print(underLineText)
 			}
-			fmt.Print(cyanColor)
-			fmt.Printf("%c", char)
-			fmt.Print(resetColor)
+			printToTerminal(toPrint, cyanColor)
 			userInputIdx++
 			continue
 		}
 
-		if userInput[userInputIdx] == char {
-			fmt.Print(greenColor)
-			fmt.Printf("%c", char)
-			fmt.Print(resetColor)
-			userInputIdx++
-			continue
+		toColor := greenColor
+		// the typed char is correct
+		if gs.UserInput[userInputIdx] != char {
+			toColor = redColor
 		}
-		fmt.Print(redColor)
-		fmt.Printf("%c", char)
-		fmt.Print(resetColor)
+		// the type char is incorrect
+		printToTerminal(toPrint, toColor)
 		userInputIdx++
 	}
+}
+
+func (gs *GameState) RunGameLoop(fd uintptr) {
+	reader := bufio.NewReader(os.Stdin)
+	for gs.Position < len(gs.TargetText) {
+		char, _, err := reader.ReadRune()
+		if err != nil {
+			log.Printf("reading buffer: %v", err)
+			return
+		}
+
+		gs.ProcessInput(char)
+
+		width, _, err := term.GetSize(int(fd))
+		if err != nil {
+			log.Printf("reading terminal size: %v", err)
+		}
+		gs.Render(width)
+	}
+}
+
+func (gs *GameState) ShowGameResult() {
+	fmt.Print(resetColor)
+	fmt.Print(carriageNewLine)
+	duration := time.Since(gs.StartTime).Seconds()
+	stats := GetStats([]rune(gs.TargetText), gs.UserInput, duration)
+	fmt.Printf("result: %s", stats)
+	fmt.Print(carriageNewLine)
 }
 
 func getWrappedText(text string, width int) string {
@@ -188,4 +209,36 @@ func getWrappedText(text string, width int) string {
 		remainingWidth--
 	}
 	return s.String()
+}
+
+func initializeGame() *GameState {
+	text := GetRandomText()
+	gs := NewGameState(text)
+
+	clearAndResetCursor()
+	printToTerminal(greetingMessage+carriageNewLine, grayColor)
+	printToTerminal(gs.TargetText, cyanColor)
+	fmt.Print(carriageReturn)
+
+	return gs
+}
+
+func main() {
+	logFile, err := os.OpenFile("debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		panic(err)
+	}
+	log.SetOutput(logFile)
+
+	fd := os.Stdin.Fd()
+	oldState, err := setupTerminalRawMode(int(fd))
+	if err != nil {
+		panic(err)
+	}
+	defer restoreTerminalMode(int(fd), oldState)
+
+	gs := initializeGame()
+
+	gs.RunGameLoop(fd)
+	gs.ShowGameResult()
 }
