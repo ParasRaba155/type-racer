@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"golang.org/x/term"
 )
@@ -102,6 +104,19 @@ func main() {
 
 	gs := initializeGame()
 
+    go handleResize(gs)
+
 	gs.RunGameLoop(fd)
 	gs.ShowGameResult()
 }
+
+func handleResize(gs *GameState) {
+	resize := make(chan os.Signal, 1)
+	signal.Notify(resize, syscall.SIGWINCH)
+
+	for {
+		<-resize
+		gs.Reset()
+	}
+}
+

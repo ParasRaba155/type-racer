@@ -114,6 +114,20 @@ func (gs *GameState) RunGameLoop(fd uintptr) {
 	}
 }
 
+func (gs *GameState) Reset() {
+	gs.mu.Lock()
+	defer gs.mu.Unlock()
+
+	gs.UserInput = make([]rune, len(gs.TargetText))
+	gs.Position = 0
+	gs.StartTime = time.Now()
+
+	clearAndResetCursor()
+	printToTerminal(greetingMessage+carriageNewLine, grayColor)
+	printToTerminal(gs.TargetText, cyanColor)
+	fmt.Print(carriageReturn)
+}
+
 func (gs *GameState) ShowGameResult() {
 	fmt.Print(resetColor)
 	fmt.Print(carriageNewLine)
