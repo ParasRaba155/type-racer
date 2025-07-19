@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"math/rand/v2"
+	"strings"
 )
 
 var quotes = [...]string{
@@ -24,12 +24,6 @@ func GetRandomText() string {
 	return quotes[randomNum]
 }
 
-type Stats struct {
-	Accuracy float64
-	// Word Per Minute
-	WPM float64
-}
-
 func textDiffRatio[T comparable](orig, newer []T) float64 {
 	if len(orig) == 0 || len(newer) == 0 {
 		return 0
@@ -48,25 +42,24 @@ func textDiffRatio[T comparable](orig, newer []T) float64 {
 	return 1 - float64(wrongs)/float64(len(orig))
 }
 
-// GetStats orig and user input text and total time in second
-func GetStats(orig, newer []rune, sec float64) Stats {
-	diffRatio := textDiffRatio(orig, newer)
-
-	return Stats{
-		Accuracy: diffRatio * 100,
-		WPM:      getWPM(newer, sec),
+func getWrappedText(text string, width int) string {
+	if width <= 0 {
+		return ""
 	}
-}
 
-// getWPM calculates by considering 5 runes as a single word
-func getWPM(str []rune, sec float64) float64 {
-	numOfLetterInWord := 5.0
-	numOfWordInStr := float64(len(str)) / numOfLetterInWord
+	if len(text) <= width {
+		return text
+	}
 
-	wps := numOfWordInStr / sec
-	return wps * 60
-}
-
-func (s Stats) String() string {
-	return fmt.Sprintf("Accuracy = %.0f%%, WPM (Words Per Minute) = %.f", s.Accuracy, s.WPM)
+	var s strings.Builder
+	remainingWidth := width
+	for i := range text {
+		if remainingWidth == 0 {
+			s.WriteByte('\n')
+			remainingWidth = width
+		}
+		s.WriteByte(text[i])
+		remainingWidth--
+	}
+	return s.String()
 }
