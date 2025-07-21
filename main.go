@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"golang.org/x/term"
 )
@@ -104,7 +105,7 @@ func main() {
 
 	gs := initializeGame()
 
-    go handleResize(gs)
+	go handleResize(gs)
 
 	gs.RunGameLoop(fd)
 	gs.ShowGameResult()
@@ -116,7 +117,7 @@ func handleResize(gs *GameState) {
 
 	for {
 		<-resize
+		time.Sleep(time.Millisecond * 400)
 		gs.Reset()
 	}
 }
-

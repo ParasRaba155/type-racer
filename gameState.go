@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"log"
 	"os"
@@ -32,7 +31,7 @@ func NewGameState(targetText string) *GameState {
 }
 
 // ProcessInput handles a single character input from the user.
-func (gs *GameState) ProcessInput(char rune) {
+func (gs *GameState) ProcessInput(char byte) {
 	gs.mu.Lock()
 	defer gs.mu.Unlock()
 	if char == backSpaceChar {
@@ -96,15 +95,16 @@ func (gs *GameState) Render(width int) {
 }
 
 func (gs *GameState) RunGameLoop(fd uintptr) {
-	reader := bufio.NewReader(os.Stdin)
+	reader := os.Stdin
 	for gs.Position < len(gs.TargetText) {
-		char, _, err := reader.ReadRune()
-		if err != nil {
-			log.Printf("reading buffer: %v", err)
+		var charArr [4]byte
+		n, err := reader.Read(charArr[:])
+		if err != nil || n != 1 {
+			log.Printf("reading buffer: %v %d", err, n)
 			return
 		}
 
-		gs.ProcessInput(char)
+		gs.ProcessInput(charArr[0])
 
 		width, _, err := term.GetSize(int(fd))
 		if err != nil {
@@ -118,9 +118,9 @@ func (gs *GameState) Reset() {
 	gs.mu.Lock()
 	defer gs.mu.Unlock()
 
-	gs.UserInput = make([]rune, len(gs.TargetText))
 	gs.Position = 0
 	gs.StartTime = time.Now()
+	clear(gs.UserInput)
 
 	clearAndResetCursor()
 	printToTerminal(greetingMessage+carriageNewLine, grayColor)

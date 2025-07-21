@@ -25,7 +25,14 @@ func GetStats(orig, newer []rune, sec float64) Stats {
 // getWPM calculates by considering 5 runes as a single word
 func getWPM(str []rune, sec float64) float64 {
 	numOfLetterInWord := 5.0
-	numOfWordInStr := float64(len(str)) / numOfLetterInWord
+	numOfLetters := 0
+	for _, char := range str {
+		if char == 0 {
+			continue
+		}
+		numOfLetters++
+	}
+	numOfWordInStr := float64(numOfLetters) / numOfLetterInWord
 
 	wps := numOfWordInStr / sec
 	return wps * 60
