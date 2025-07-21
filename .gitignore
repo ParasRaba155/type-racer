@@ -4,3 +4,6 @@ main
 
 ## log files
 *.log
+
+## profile files
+*.prof

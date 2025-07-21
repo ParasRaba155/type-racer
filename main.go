@@ -1,10 +1,13 @@
 package main
 
 import (
+	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/signal"
+	"runtime/pprof"
 	"syscall"
 	"time"
 
@@ -77,9 +80,8 @@ func moveCursorUpAndClearLine() {
 	fmt.Print(deleteTillNewLine)
 }
 
-func initializeGame() *GameState {
-	text := GetRandomText()
-	gs := NewGameState(text)
+func initializeGame(text string, width int) *GameState {
+	gs := NewGameState(text, width)
 
 	clearAndResetCursor()
 	printToTerminal(greetingMessage+carriageNewLine, grayColor)
@@ -89,12 +91,34 @@ func initializeGame() *GameState {
 	return gs
 }
 
+var (
+	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+	debug      = flag.String("debug", "", "write cpu profile to file")
+)
+
 func main() {
-	logFile, err := os.OpenFile("debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		panic(err)
+	flag.Parse()
+	if *cpuprofile != "" {
+		cpuFile, err := os.Create("cpu.prof")
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(cpuFile)
+		defer func() {
+			pprof.StopCPUProfile()
+			cpuFile.Close()
+		}()
 	}
-	log.SetOutput(logFile)
+
+	if *debug != "" {
+		logFile, err := os.OpenFile(*debug, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+		if err != nil {
+			panic(err)
+		}
+		log.SetOutput(logFile)
+	} else {
+		log.SetOutput(io.Discard)
+	}
 
 	fd := os.Stdin.Fd()
 	oldState, err := setupTerminalRawMode(int(fd))
@@ -103,21 +127,31 @@ func main() {
 	}
 	defer restoreTerminalMode(int(fd), oldState)
 
-	gs := initializeGame()
+	width, _, err := term.GetSize(int(fd))
+	if err != nil {
+		panic(err)
+	}
 
-	go handleResize(gs)
+	text := GetRandomText()
+	gs := initializeGame(text, width)
 
-	gs.RunGameLoop(fd)
+	go handleResize(gs, fd)
+
+	gs.RunGameLoop()
 	gs.ShowGameResult()
 }
 
-func handleResize(gs *GameState) {
+func handleResize(gs *GameState, fd uintptr) {
 	resize := make(chan os.Signal, 1)
 	signal.Notify(resize, syscall.SIGWINCH)
 
 	for {
 		<-resize
+		width, _, err := term.GetSize(int(fd))
+		if err != nil {
+			log.Printf("handleResize: couldn't get term size: %v", err)
+		}
 		time.Sleep(time.Millisecond * 400)
-		gs.Reset()
+		gs.Reset(width)
 	}
 }
