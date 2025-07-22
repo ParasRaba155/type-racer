@@ -99,7 +99,7 @@ var (
 func main() {
 	flag.Parse()
 	if *cpuprofile != "" {
-		cpuFile, err := os.Create("cpu.prof")
+		cpuFile, err := os.Create(*cpuprofile)
 		if err != nil {
 			log.Fatal(err)
 		}
