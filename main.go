@@ -110,15 +110,15 @@ func main() {
 		}()
 	}
 
+	var logFile = io.Discard
 	if *debug != "" {
-		logFile, err := os.OpenFile(*debug, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+		debugFile, err := os.OpenFile(*debug, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 		if err != nil {
 			panic(err)
 		}
-		log.SetOutput(logFile)
-	} else {
-		log.SetOutput(io.Discard)
+		logFile = debugFile
 	}
+	log.SetOutput(logFile)
 
 	fd := os.Stdin.Fd()
 	oldState, err := setupTerminalRawMode(int(fd))
@@ -136,6 +136,7 @@ func main() {
 	gs := initializeGame(text, width)
 
 	go handleResize(gs, fd)
+	go handleExit(gs)
 
 	gs.RunGameLoop()
 	gs.ShowGameResult()
@@ -153,5 +154,16 @@ func handleResize(gs *GameState, fd uintptr) {
 		}
 		time.Sleep(time.Millisecond * 400)
 		gs.Reset(width)
+	}
+}
+
+func handleExit(gs *GameState) {
+	exit := make(chan os.Signal, 1)
+	signal.Notify(exit, syscall.SIGTERM)
+
+	for {
+		<-exit
+		gs.ShowGameResult()
+		os.Exit(0)
 	}
 }

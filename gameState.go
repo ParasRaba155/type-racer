@@ -106,6 +106,11 @@ func (gs *GameState) RunGameLoop() {
 			return
 		}
 
+		// 3 is for ctrl+c and 27 for esc key
+		if charArr[0] == 3 || charArr[0] == 27  {
+			return
+		}
+
 		gs.ProcessInput(charArr[0])
 		gs.Render()
 	}
